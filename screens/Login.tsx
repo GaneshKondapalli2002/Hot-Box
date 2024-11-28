@@ -1,147 +1,232 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, Pressable, ActivityIndicator } from 'react-native';
-import axiosInstance from '../axios-instance'; 
-import { StackNavigationProp } from '@react-navigation/stack';
-import { ParamListBase, useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Image } from "expo-image";
-import ShapesIcon from '../components/ShapesIcon';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Image,
+  KeyboardAvoidingView,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-const Login = () => {
-  const navigation = useNavigation<StackNavigationProp<ParamListBase>>();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-const handleLogin = async () => {
-  try {
-    setLoading(true);
-    const response = await axiosInstance.post('/auth/login', {
-      email,
-      password,
-    });
-
-    const { token, user } = response.data;
-
-    // Check if user and role exist before storing
-    if (user && user.role) {
-      if (user.id && user.email && user.name) {
-        await AsyncStorage.setItem('token', token);
-        await AsyncStorage.setItem('role', user.role);
-        await AsyncStorage.setItem('userId', user.id);  // Use user.id instead of user._id
-        await AsyncStorage.setItem('userEmail', user.email);
-        await AsyncStorage.setItem('userName', user.name);
-
-        // Navigate based on user role
-        if (user.role === 'admin') {
-          navigation.navigate('Admin'); // Replace with your admin screen name
-        } else {
-          navigation.navigate('Home'); // Replace with your home screen name
-        }
-      } else {
-        console.error('User data is incomplete:', user);
-        setMessage('User data is incomplete. Please try again.');
-      }
-    } else {
-      console.error('User or role not found in login response:', response.data);
-      setMessage('Invalid login response. Please try again.');
-    }
-
-  } catch (error: any) {
-    console.error('Login failed:', error.response ? error.response.data.msg : error.message);
-    setMessage('Invalid credentials. Please try again.');
-  } finally {
-    setLoading(false);
-  }
+type RootStackParamList = {
+  start: undefined;
+  Login: undefined;
+  Register: undefined;
+  home: undefined; // Add 'home' here
 };
+
+type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+
+const LoginScreen = () => {
+  const navigation = useNavigation<LoginScreenNavigationProp>();
 
   return (
-    <View style={styles.container}>
-      <ShapesIcon shapes={require('../assets/shapes.png')} />
-      <Image
-        style={styles.undrawMobileContentXvgr1Icon}
-        source={require("../assets/image.png")}
-      />
-      <Text style={styles.title}>Login</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <Pressable style={styles.button} onPress={handleLogin} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator size="small" color="white" />
-        ) : (
-          <Text style={styles.buttonText}>Login</Text>
-        )}
-      </Pressable>
-      {message ? <Text style={styles.message}>{message}</Text> : null}
-      <Pressable onPress={() => navigation.navigate('Registration')}>
-        <Text style={styles.link}>Don't have an account? Register here</Text>
-      </Pressable>
-    </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={50}
+    >
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <View style={styles.container}>
+          {/* Background */}
+          <View style={styles.header}>
+            <View style={styles.logo}>
+              <Image
+                source={require('../assets/lunchbox.png')}
+                style={styles.logoImage}
+              />
+            </View>
+            <Text style={styles.title}>Login</Text>
+          </View>
+
+          {/* Overlay */}
+          <View style={styles.overlay} />
+
+          {/* Login Form */}
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.loginForm}>
+              {/* Username Field */}
+              <View style={styles.inputField}>
+                <Text style={styles.label}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your username"
+                  placeholderTextColor="#757575"
+                />
+              </View>
+
+              {/* Password Field */}
+              <View style={styles.inputField}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your password"
+                  placeholderTextColor="#757575"
+                  secureTextEntry
+                />
+              </View>
+
+              {/* Actions */}
+              <View style={styles.actions}>
+                <Text style={styles.rememberMe}>Remember me</Text>
+                <TouchableOpacity>
+                  <Text style={styles.forgotPassword}>Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Login Button */}
+              <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('home')} >
+                <Text style={styles.loginButtonText}>Log In</Text>
+              </TouchableOpacity>
+
+              {/* Register Link */}
+              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                <Text style={styles.forgotPassword}>New User Register here?</Text>
+              </TouchableOpacity>
+
+              {/* Social Login */}
+              <View style={styles.socialContainer}>
+                <TouchableOpacity>
+                  <Image
+                    source={{ uri: 'https://static-00.iconduck.com/assets.00/google-icon-256x256-67qgou6b.png' }}
+                    style={styles.socialLogo}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity>
+                  <Image
+                    source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Instagram_icon.png/2048px-Instagram_icon.png' }}
+                    style={styles.socialLogo}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity>
+                  <Image
+                    source={{ uri: 'https://cdn-icons-png.flaticon.com/256/124/124010.png' }}
+                    style={styles.socialLogo}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
+
+export default LoginScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#0B204E',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+  },
+  header: {
     alignItems: 'center',
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 20,
+    marginTop: 50,
+  },
+  logo: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontSize: 32,
+    fontWeight: '400',
+    color: '#0B204E',
+    marginTop: 40,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 230, // Fixed position
+    left: 0,
+    right: 0,
+    height: '90%', // Fixed size
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 40,
+    zIndex: -1, // Keeps it behind other elements
+  },
+  loginForm: {
+    marginTop: 60,
+    marginHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
+  },
+  inputField: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    color: '#1E1E1E',
+    marginBottom: 8,
   },
   input: {
-    width: '100%',
-    height: 40,
+    height: 50,
+    borderColor: '#D9D9D9',
     borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 100, // Rounded edges
-    paddingLeft: 10,
-    marginBottom: 10,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    color: '#5A5A5A',
   },
-  button: {
-    width: '100%',
-    height: 40,
-    backgroundColor: '#69DCCE',
-    justifyContent: 'center',
+  actions: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 10, // Rounded edges
-    marginTop: 20,
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
+  rememberMe: {
+    fontSize: 16,
+    color: '#000000',
+  },
+  forgotPassword: {
+    fontSize: 16,
+    textDecorationLine: 'underline',
+    color: '#0B204E',
+  },
+  loginButton: {
+    height: 40,
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
   },
-  message: {
-    marginTop: 10,
-    color: 'red', // Use your error message color
+  socialContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
   },
-  link: {
-    marginTop: 20,
-    color: '#1E90FF', // Use your link color
-    textDecorationLine: 'underline',
-  },
-  undrawMobileContentXvgr1Icon: {
-    width: 245,
-    height: 233,
-    marginBottom: 20,
+  socialLogo: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
   },
 });
-
-export default Login;

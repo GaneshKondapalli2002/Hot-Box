@@ -1,198 +1,245 @@
-
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, Pressable, ActivityIndicator } from 'react-native';
-import axios from 'axios';
-import ShapesIcon from '../components/ShapesIcon';
-import Notifications from '../components/Notifications';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { ParamListBase, useNavigation } from '@react-navigation/native';
-import { Image } from "expo-image";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Image,
+  KeyboardAvoidingView,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-const Registration = () => {
-  const navigation = useNavigation<StackNavigationProp<ParamListBase>>();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState('user'); // Default role is 'user'
+type RootStackParamList = {
+  start: undefined;
+  Login: undefined;
+  Register: undefined;
+};
 
-  const handleRegister = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.post('http://192.168.1.34:5000/api/auth/register', {  
-      name,
-        email,
-        password,
-        confirmPassword,
-        role, // Include role in the request payload
-      });
+type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
-      console.log(response.data);
-      navigation.navigate('OTPVerification', { email });
-    } catch (error: any) {
-      console.error('Registration failed:', error.response ? error.response.data.msg : error.message);
-      setMessage('Registration failed. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = () => {
-    setMessage('');
-    if (!name || !email || !password || !confirmPassword) {
-      setMessage('Please fill in all fields');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setMessage('Passwords do not match');
-      return;
-    }
-    handleRegister();
-  };
+const RegisterScreen = () => {
+  const navigation = useNavigation<RegisterScreenNavigationProp>();
 
   return (
-    <View style={styles.container}>
-      <ShapesIcon shapes={require('../assets/shapes.png')} />
-      <Notifications />
-      <Image
-        style={styles.undrawMobileContentXvgr1Icon}
-        source={require("../assets/register.svg")}
-      />
-      <Text style={styles.title}>Register</Text>
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={[styles.input]}
-          placeholder="Enter your full name"
-          value={name}
-          onChangeText={setName}
-        />
-        <TextInput
-          style={[styles.input]}
-          placeholder="Enter your email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={[styles.input]}
-          placeholder="Enter password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <TextInput
-          style={[styles.input]}
-          placeholder="Confirm password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-        />
-        <View style={styles.radioContainer}>
-          <Text style={styles.radioLabel}>Select Role:</Text>
-          <View style={styles.radioOption}>
-            <Text>User</Text>
-            <Pressable onPress={() => setRole('user')} style={[styles.radioButton, role === 'user' && styles.radioButtonSelected]} />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={50}
+    >
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <View style={styles.container}>
+          {/* Background */}
+          <View style={styles.header}>
+            <View style={styles.logo}>
+              <Image
+                source={require('../assets/lunchbox.png')}
+                style={styles.logoImage}
+              />
+            </View>
+            <Text style={styles.title}>Register</Text>
           </View>
-          <View style={styles.radioOption}>
-            <Text>Admin</Text>
-            <Pressable onPress={() => setRole('admin')} style={[styles.radioButton, role === 'admin' && styles.radioButtonSelected]} />
-          </View>
+
+          {/* Overlay */}
+          <View style={styles.overlay} />
+
+          {/* Registration Form */}
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.loginForm}>
+              {/* Full Name Field */}
+              <View style={styles.inputField}>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your full name"
+                  placeholderTextColor="#757575"
+                />
+              </View>
+
+              {/* Email Field */}
+              <View style={styles.inputField}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your email"
+                  placeholderTextColor="#757575"
+                  keyboardType="email-address"
+                />
+              </View>
+
+              {/* Password Field */}
+              <View style={styles.inputField}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your password"
+                  placeholderTextColor="#757575"
+                  secureTextEntry
+                />
+              </View>
+
+              {/* Confirm Password Field */}
+              <View style={styles.inputField}>
+                <Text style={styles.label}>Confirm Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm your password"
+                  placeholderTextColor="#757575"
+                  secureTextEntry
+                />
+              </View>
+
+              {/* Register Button */}
+              <TouchableOpacity style={styles.loginButton}>
+                <Text style={styles.loginButtonText}>Register</Text>
+              </TouchableOpacity>
+
+              {/* Login Link */}
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.forgotPassword}>Already have an account? Log in</Text>
+              </TouchableOpacity>
+
+              {/* Social Login */}
+              <View style={styles.socialContainer}>
+                <TouchableOpacity>
+                  <Image
+                    source={{ uri: 'https://static-00.iconduck.com/assets.00/google-icon-256x256-67qgou6b.png' }}
+                    style={styles.socialLogo}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity>
+                  <Image
+                    source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Instagram_icon.png/2048px-Instagram_icon.png' }}
+                    style={styles.socialLogo}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity>
+                  <Image
+                    source={{ uri: 'https://cdn-icons-png.flaticon.com/256/124/124010.png' }}
+                    style={styles.socialLogo}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
         </View>
-      </View>
-      <Pressable style={styles.button} onPress={handleSubmit} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator size="small" color="white" />
-        ) : (
-          <Text style={styles.buttonText}>Register</Text>
-        )}
-      </Pressable>
-      {message ? <Text style={styles.message}>{message}</Text> : null}
-      <Pressable onPress={() => navigation.navigate('Login')}>
-        <Text style={styles.link}>Already have an account? Sign in</Text>
-      </Pressable>
-    </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
+
+export default RegisterScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#0B204E',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+  },
+  header: {
     alignItems: 'center',
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 20,
+    marginTop: 50,
+  },
+  logo: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontSize: 32,
+    fontWeight: '400',
+    color: '#0B204E',
+    marginTop: 40,
   },
-  inputContainer: {
-    width: '100%',
-    marginBottom: 20,
+  overlay: {
+    position: 'absolute',
+    top: 230, // Fixed position
+    left: 0,
+    right: 0,
+    height: '90%', // Fixed size
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 40,
+    zIndex: -1, // Keeps it behind other elements
+  },
+  loginForm: {
+    marginTop: 60,
+    marginHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
+  },
+  inputField: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    color: '#1E1E1E',
+    marginBottom: 8,
   },
   input: {
-    width: '100%',
-    height: 40,
+    height: 50,
+    borderColor: '#D9D9D9',
     borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 100, // Rounded edges
-    paddingLeft: 10,
-    marginBottom: 10,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    color: '#5A5A5A',
   },
-  radioContainer: {
-    marginBottom: 20,
-  },
-  radioLabel: {
-    marginBottom: 10,
-    fontWeight: 'bold',
-  },
-  radioOption: {
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  radioButton: {
-    width: 20,
-    height: 20,
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 10,
-    marginRight: 10,
+  rememberMe: {
+    fontSize: 16,
+    color: '#000000',
   },
-  radioButtonSelected: {
-    backgroundColor: '#1FBAA7',
+  forgotPassword: {
+    fontSize: 16,
+    textDecorationLine: 'underline',
+    color: '#0B204E',
   },
-  button: {
-    width: '100%',
+  loginButton: {
     height: 40,
-    backgroundColor: '#69DCCE',
-    justifyContent: 'center',
+    backgroundColor: '#2C2C2C',
+    borderRadius: 8,
     alignItems: 'center',
-    borderRadius: 10, // Rounded edges
-    marginTop: 20,
+    justifyContent: 'center',
   },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
+  loginButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
   },
-  message: {
-    marginTop: 10,
-    color: 'red', // Use your error message color
+  socialContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
   },
-  link: {
-    marginTop: 20,
-    color: '#1E90FF', // Use your link color
-    textDecorationLine: 'underline',
-  },
-  undrawMobileContentXvgr1Icon: {
-    width: 245,
-    height: 233,
-    marginBottom: 20,
+  socialLogo: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
   },
 });
-
-export default Registration;

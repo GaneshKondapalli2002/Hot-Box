@@ -1,556 +1,154 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Modal,
-  Animated,
-  Alert,
-  TextInput,
-  SafeAreaView
-} from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import ShapesIcon from '../components/ShapesIcon';
-import instance from '../axios-instance';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationProp, ParamListBase } from '@react-navigation/native';
-import SignatureScreen from 'react-native-signature-canvas';
-import voice from '@react-native-voice/voice';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import { usePushNotifications } from './Notification';
-import * as Notifications from 'expo-notifications';
-import { useNotification } from './NotificationContext';
 
-interface JobPost {
-  _id: string;
-  Date: string;
-  Shift: string;
-  Location: string;
-  Starttime: string;
-  Endtime: string;
-  JobDescription: string;
-  Payment: string;
-  assignedTo?: string;
-  status?: string;
-  checkedIn: boolean;
-  checkedOut: boolean;
-  CRID: string; 
-  checkedInTime:string;
-  checkedOutTime:string;
-}
+type RootStackParamList = {
+  start: undefined;
+  Login: undefined;
+  Register: undefined;
+  home: undefined; // Add this line
+};
 
-type DashboardProps = {
+type homeProps = {
   navigation: NavigationProp<ParamListBase>;
 };
 
-const HomeScreen: React.FC<DashboardProps> = ({ navigation }) => {
-   const { expoPushToken } = usePushNotifications();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [jobPosts, setJobPosts] = useState<JobPost[]>([]);
-  const [filteredJobPosts, setFilteredJobPosts] = useState<JobPost[]>([]);
-  const slideAnim = useState(new Animated.Value(-300))[0];
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeSection, setActiveSection] = useState('open');
-  const [checkoutInputs, setCheckoutInputs] = useState<{ [key: string]: string }>({});
-  const [isTemplate, setIsTemplate] = useState(false);
-  const [colorText, setPenColor] = useState('');
-  const [showSignature, setShowSignature] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<JobPost | null>(null);
-  const [isCheckingIn, setIsCheckingIn] = useState<string | null>(null); // State to manage checking in
-  const [description, setDescription] = useState('');
-  const { addNotification } = useNotification();
-  const signatureRef = useRef<any>(null);
- const [PatientWeight, setPatientWeight] = useState('');
-  const [Temperature, setTemperature] = useState('');
-  const [BloodPressure, setBloodPressure] = useState('');
-  const [showCheckoutSection, setShowCheckoutSection] = useState(false);
-  const [showAdditionalInfo, setShowAdditionalInfo] = useState(true);
-  const [showCheckout, setShowCheckout] = useState(false);
-  
+const home: React.FC<homeProps> = ({ navigation }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const daysOfWeek = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-  useEffect(() => {
-    const fetchJobPosts = async () => {
-      try {
-        const response = await instance.get('/jobPosts');
-        const allJobs = response.data;
-
-        const openJobs = allJobs.filter((job: JobPost) => job.status === 'open');
-        const completedJobs = allJobs.filter((job: JobPost) => job.status === 'completed');
-        const upcomingJobs = allJobs.filter((job: JobPost) => job.status === 'upcoming');
-        const checkedInJobs = allJobs.filter((job: JobPost) => job.status === 'checkedIn');
-
-        setJobPosts(allJobs);
-
-        switch (activeSection) {
-          case 'open':
-            setFilteredJobPosts(openJobs);
-            break;
-          case 'completed':
-            setFilteredJobPosts(completedJobs);
-            break;
-          case 'upcoming':
-            setFilteredJobPosts(upcomingJobs);
-            break;
-          case 'checkedIn':
-            setFilteredJobPosts(checkedInJobs);
-            break;
-          default:
-            setFilteredJobPosts(openJobs);
-            break;
-        }
-      } catch (error: any) {
-        console.error('Error fetching job posts:', error.response ? error.response.data : error.message);
-        Alert.alert('Error', 'Failed to fetch job posts');
-      }
-    };
-
-    fetchJobPosts();
-  }, [activeSection]);
-
-  const toggleModal = () => {
-    if (modalVisible) {
-      Animated.timing(slideAnim, {
-        toValue: -300,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => setModalVisible(false));
-    } else {
-      setModalVisible(true);
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
+  const getFirstDayOfWeek = () => {
+    const date = new Date(currentDate);
+    const day = date.getDay();
+    const firstDay = new Date(date);
+    firstDay.setDate(date.getDate() - day + 1);
+    return firstDay;
   };
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    if (query.trim() === '') {
-      setFilteredJobPosts(jobPosts);
-    } else {
-      const filtered = jobPosts.filter((post) =>
-        post.JobDescription.toLowerCase().includes(query.toLowerCase())
-      );
-      setFilteredJobPosts(filtered);
+  const getWeekDates = () => {
+    const firstDay = getFirstDayOfWeek();
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(firstDay);
+      date.setDate(firstDay.getDate() + i);
+      dates.push(date);
     }
+    return dates;
   };
 
-  const sendNotification = async (userId: string, message: string) => {
-    try {
-      await instance.post('/notifications', { userId, message });
-    } catch (error) {
-      console.error('Error sending notification:', error);
-    }
+  const handlePreviousWeek = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() - 7);
+    setCurrentDate(newDate);
   };
 
-  const acceptJob = async (jobId: string) => {
-    try {
-      const response = await instance.put(`/jobPosts/accept/${jobId}`);
-      if (response.status === 200) {
-        const updatedJobPosts = jobPosts.map((job) =>
-          job._id === jobId ? { ...job, status: 'upcoming' } : job
-        );
-        setJobPosts(updatedJobPosts);
-         await Notifications.scheduleNotificationAsync({
-        content: {
-          title: ' Job Accepted!',
-          body: 'You have been assigned a new job.',
-        },
-        trigger: null,
-      });
-       const notification = {
-        title: 'Job Accepted',
-        body: 'You have been assigned a new job.',
-        date: new Date().toISOString(),
-      };
-      addNotification(notification);
-
-        const openJobsResponse = await instance.get('/jobPosts');
-        const allJobs = openJobsResponse.data;
-        const openJobs = allJobs.filter((job: JobPost) => job.status === 'open');
-
-        setFilteredJobPosts(openJobs);
-
-        Alert.alert('Success', 'Job accepted successfully!');
-
-        const acceptedJob = jobPosts.find((job) => job._id === jobId);
-        if (acceptedJob && acceptedJob.assignedTo) {
-          sendNotification(acceptedJob.assignedTo, 'You have been assigned a new job.');
-        }
-      } else {
-        throw new Error('Failed to accept job');
-      }
-    } catch (error: any) {
-      console.error('Error accepting job:', error.response ? error.response.data : error.message);
-      Alert.alert('Error', 'Failed to accept job');
-    }
+  const handleNextWeek = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + 7);
+    setCurrentDate(newDate);
   };
 
-  const checkInJob = async (jobId: string) => {
-  try {
-    const currentTime = new Date().toISOString();
-    const response = await instance.put(`/jobPosts/checkIn/${jobId}`, {
-      checkedInTime: currentTime,
-    });
-    if (response.status === 200) {
-      const updatedJobPosts = jobPosts.map((job) =>
-        job._id === jobId ? { ...job, status: 'checkedIn', checkedIn: true, checkedInTime: currentTime } : job
-      );
-      setJobPosts(updatedJobPosts);
-      const filteredJobs = updatedJobPosts.filter((job) => job.status === 'checkedIn');
-      setFilteredJobPosts(filteredJobs);
-      setIsCheckingIn(jobId); // Set the job ID that is being checked in
-      Alert.alert('Success', 'Checked in successfully!');
-    } else {
-      throw new Error('Failed to check in job');
-    }
-  } catch (error: any) {
-    console.error('Error checking in job:', error.response ? error.response.data : error.message);
-    Alert.alert('Error', 'Failed to check in job');
-  }
-};
-const checkOutJob = async (jobId: string) => {
-  try {
-    const currentTime = new Date().toISOString();
-   
-    setIsCheckingIn(jobId); // Set the job ID that is being checked out
-     const updatedJobPosts = jobPosts.map((job) =>
-        job._id === isCheckingIn ? { ...job, status: 'completed', checkedOut: true } : job
-      );
-    const filteredJobs = updatedJobPosts.filter((job) => job.status === 'completed');
-      setFilteredJobPosts(filteredJobs);
-      setIsCheckingIn(null); // Clear the checked-in job
-      setDescription(''); // Clear the description input
-      Alert.alert('Success', 'Checked out successfully!'); // Open the signature modal
-  } catch (error: any) {
-    console.error('Error preparing checkout:', error.message);
-    Alert.alert('Error', 'Failed to prepare for checkout');
-  }
-};
- const handleNext = () => {
-    setShowCheckoutSection(true);
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
   };
-
-  const logout = async () => {
-    try {
-      await AsyncStorage.removeItem('token');
-      navigation.navigate('Login');
-    } catch (error: any) {
-      console.error('Error logging out:', error.message);
-      Alert.alert('Logout Failed', 'Failed to logout. Please try again.');
-    }
-  };
-
-  const handleSectionPress = (section: string) => {
-    setActiveSection(section);
-    switch (section) {
-      case 'open':
-        setFilteredJobPosts(jobPosts.filter((job) => job.status === 'open'));
-        break;
-      case 'completed':
-        setFilteredJobPosts(jobPosts.filter((job) => job.status === 'completed'));
-        break;
-      case 'upcoming':
-        setFilteredJobPosts(jobPosts.filter((job) => job.status === 'upcoming'));
-        break;
-      default:
-        setFilteredJobPosts(jobPosts.filter((job) => job.status === 'open'));
-        break;
-    }
-  };
-const getShiftIcon = (shift: string) => {
-    if (shift.toLowerCase() === 'morning') {
-      return <FontAwesome name="sun-o" size={20} color="#ffa500" />;
-    } else if (shift.toLowerCase() === 'night') {
-      return <FontAwesome name="moon-o" size={20} color="#0000ff" />;
-    } else {
-      return null;// return <ShapesIcon name="square" size={20} color="#ffa500" />;
-    }
-  };
- const handleSignatureSave = async (signature: string) => {
-  
-  const patientWeight = PatientWeight;
-  const temperature = Temperature;
-  const bloodPressure = BloodPressure;
-
-  if (isCheckingIn === null) {
-    Alert.alert('Error', 'No job selected for checkout');
-    
-    return;
-  }
-
-
-  try {
-    const response = await instance.put(`/jobPosts/checkout/${isCheckingIn}`, {
-      signature: signature,
-      checkoutInput: checkoutInputs[isCheckingIn] || '',
-      patientWeight,
-      temperature,
-      bloodPressure,
-    });
-
-    if (response.status === 200) {
-      checkOutJob(isCheckingIn); 
-    } else {
-      throw new Error('Failed to check out job');
-    }
-  } catch (error: any) {
-    console.error('Error checking out job:', error.response ? error.response.data : error.message);
-    Alert.alert('Error', 'Failed to check out job');
-  }
-};
-  const handleCheckoutInput = (jobId: string, text: string) => {
-    setCheckoutInputs((prevInputs) => ({
-      ...prevInputs,
-      [jobId]: text,
-    }));
-  };
-  
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ShapesIcon shapes={require('../assets/shapes.png')} />
-      <View style={styles.searchContainer}>
-          <View style={styles.searchBox}>
-            <FontAwesome name="search" size={20} style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search..."
-              value={searchQuery}
-              onChangeText={handleSearch}
-            />
-          </View>
-      <TouchableOpacity style={styles.menuIcon} onPress={toggleModal}>
-            <FontAwesome name="bars" size={24} color="black" />
-          </TouchableOpacity>
-          </View>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.filterContainer}>
-          <TouchableOpacity
-            style={[styles.filterButton, activeSection === 'open' && styles.activeFilter]}
-            onPress={() => handleSectionPress('open')}
-          >
-            <Text style={styles.filterText}>Open Jobs</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterButton, activeSection === 'completed' && styles.activeFilter]}
-            onPress={() => handleSectionPress('completed')}
-          >
-            <Text style={styles.filterText}>Completed Jobs</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterButton, activeSection === 'upcoming' && styles.activeFilter]}
-            onPress={() => handleSectionPress('upcoming')}
-          >
-            <Text style={styles.filterText}>Upcoming Jobs</Text>
-          </TouchableOpacity>
-        </View>
-        {filteredJobPosts.map((job) => (
-          <View key={job._id} style={styles.jobCard}>
-             <Text style={styles.jobTitle}>CRID: {job.CRID}</Text>
-            <Text style={styles.jobDetail}>JobDescription: {job.JobDescription}</Text>
-            <Text style={styles.jobDetail}><Icon name="calendar" size={18} style={styles.icon} /> {job.Date}</Text>
-           <Text style={styles.jobDetail}>
-              {getShiftIcon(job.Shift)} {job.Shift}
-            </Text>
-            <Text style={styles.jobDetail}><Icon name="map-marker" size={18} style={styles.icon} /> {job.Location}</Text>
-           <Text style={styles.jobDetail}> <Icon name="clock-o" size={18} style={styles.icon}/> {job.Starttime} - {job.Endtime}</Text>
-            <Text style={styles.jobDetail}><Icon name="dollar" size={18} style={styles.icon} /> {job.Payment}</Text>
-            {activeSection === 'open' && (
-              <TouchableOpacity style={styles.button} onPress={() => acceptJob(job._id)}>
-                <Text style={styles.buttonText}>Accept</Text>
-              </TouchableOpacity>
-            )}
-            {activeSection === 'upcoming' && (
-              <>
-                {isCheckingIn === job._id ? (
-                  <>
-                    {showAdditionalInfo && (
-                      <>
-                        
-                        <Text style={styles.title}> Weight</Text>
-                        <TextInput
-                          style={styles.input}
-                          placeholder="Enter Patient Weight"
-                          value={PatientWeight}
-                          onChangeText={setPatientWeight}
-                        />
-                        <Text style={styles.title}>Temperature</Text>
-                        <TextInput
-                          style={styles.input}
-                          placeholder="Enter Temperature"
-                          value={Temperature}
-                          onChangeText={setTemperature}
-                        />
-                         <Text style={styles.title}>Blood Pressure</Text>
-                        <TextInput
-                          style={styles.input}
-                          placeholder="Enter Blood Pressure"
-                          value={BloodPressure}
-                          onChangeText={setBloodPressure}
-                        />
-                        
-                        {/* <TouchableOpacity
-                          style={styles.checkbox}
-                          onPress={() => setIsTemplate(!isTemplate)}
-                        >
-                          <Text style={styles.checkboxText}>{isTemplate ? '✓' : ''} </Text>
-                        </TouchableOpacity> */}
-                        {/* <Text style={styles.checkboxText}>Complete Feedback</Text>
-                        <TouchableOpacity style={styles.button} onPress={() => setShowSignature(true)}>
-                          <Text style={styles.buttonText}>Signature</Text>
-                        </TouchableOpacity> */}
-                        <TouchableOpacity
-                          style={styles.button}
-                          onPress={() => {
-                            setShowAdditionalInfo(false);
-                            setShowCheckout(true);
-                          }}
-                        >
-                          <Text style={styles.buttonText}>Next</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-
-                    {showCheckout && (
-                      <>
-                        <TextInput
-                          style={styles.input}
-                          multiline
-                          numberOfLines={4}
-                          placeholder="Enter checkout details"
-                          onChangeText={(text) => handleCheckoutInput(job._id, text)}
-                          value={checkoutInputs[job._id] || ''}
-                        />
-                        <TouchableOpacity style={styles.button} onPress={() => setShowSignature(true)}>
-                          <Text style={styles.buttonText}>Signature</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={() => checkOutJob(job._id)}>
-                          <Text style={styles.buttonText}>Check Out</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <TouchableOpacity style={styles.button} onPress={() => checkInJob(job._id)}>
-                    <Text style={styles.buttonText}>Check In</Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
-            {activeSection === 'completed' && (
-              <Text style={styles.jobDetail}>This job is completed</Text>
-            )}
-          </View>
-        ))}
-        <Modal visible={showSignature} transparent={true} animationType="slide">
-  <View style={styles.modalContainer}>
-    <SignatureScreen
-      ref={signatureRef}
-      onOK={handleSignatureSave}
-      onEmpty={() => console.log('Empty')}
-      descriptionText="Sign here"
-      clearText="Clear"
-      confirmText="Save"
-    />
-    
-    <TouchableOpacity style={styles.closeButton} onPress={() => setShowSignature(false)}>
-      <Text style={styles.closeButtonText}>Close</Text>
-    </TouchableOpacity>
-  </View>
-</Modal>
-        <Modal visible={modalVisible} animationType="slide" transparent={true}>
-        <Animated.View style={[styles.modalContainer, { transform: [{ translateY: slideAnim }] }]}>
-          <TouchableOpacity style={styles.modalItem} onPress={() => navigation.navigate('Profile')}>
-            <Text style={styles.modalItemText}>User Profile</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.modalItem} onPress={() => navigation.navigate('Notifications')}>
-            <Text style={styles.modalItemText}>Notifications</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.modalItem} onPress={() => navigation.navigate('speech')}>
-            <Text style={styles.modalItemText}>speech</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.modalItem} onPress={logout}>
-            <Text style={styles.modalItemText}>Logout</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.modalCloseButton} onPress={toggleModal}>
-            <Text style={styles.modalCloseButtonText}>Close</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        
-      </Modal>
-      </ScrollView>
-       <View style={styles.footer}>
-        <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('sign')}>
-          <FontAwesome name="home" size={20} style={styles.footerIcon} />
-          <Text style={styles.footerText}>sign</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Hot-Box</Text>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handlePreviousWeek} style={styles.navButton}>
+          <Text style={styles.navButtonText}>{'<'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.footerItem}>
-          <FontAwesome name="calendar" size={20} style={styles.footerIcon} onPress={() => navigation.navigate('Calendar')}/>
-          <Text style={styles.footerText}>Calendar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Notificationscreen')}>
-          <FontAwesome name="bell" size={20} style={styles.footerIcon} />
-          <Text style={styles.footerText}>Notifications</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.footerItem}>
-          <FontAwesome name="user" size={20} style={styles.footerIcon} onPress={() => navigation.navigate('Profile')}/>
-          <Text style={styles.footerText}>Profile</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.footerItem}>
-          <FontAwesome name="user" size={20} style={styles.footerIcon} onPress={() => navigation.navigate('Message')}/>
-          <Text style={styles.footerText}>Message</Text>
+        <Text style={styles.headerText}>
+          {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        </Text>
+        <TouchableOpacity onPress={handleNextWeek} style={styles.navButton}>
+          <Text style={styles.navButtonText}>{'>'}</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+
+      {/* Week Days */}
+      <View style={styles.weekContainer}>
+        {getWeekDates().map((date, index) => (
+          <View
+            key={index}
+            style={[
+              styles.dayContainer,
+              isToday(date) && styles.todayContainer, // Highlight today's date
+            ]}
+          >
+            <Text style={[styles.dayText, isToday(date) && styles.todayText]}>
+              {daysOfWeek[index]}
+            </Text>
+            <Text style={[styles.dateText, isToday(date) && styles.todayText]}>
+              {date.getDate()}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Login')}>
+          <FontAwesome name="home" size={20} style={styles.footerIcon} />
+          <Text style={styles.footerText}>Sign</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Calendar')}>
+          <FontAwesome name="calendar" size={20} style={styles.footerIcon} />
+          <Text style={styles.footerText}>Calendar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.footerItem}
+          onPress={() => navigation.navigate('JobPostForm')}
+        >
+          <FontAwesome name="plus" size={20} style={styles.footerIcon} />
+          <Text style={styles.footerText}>Post Job</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Profile')}>
+          <FontAwesome name="user" size={20} style={styles.footerIcon} />
+          <Text style={styles.footerText}>Profile</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    padding: 20,
+    backgroundColor: '#F8F9FA', // Light gray background
   },
-  scrollView: {
-    flex: 1,
-  },
-   searchBox: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF', // White background for header
+    padding: 15,
     borderRadius: 10,
-    paddingHorizontal: 10,
-    flex: 1,
-    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  filterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginVertical: 10,
-  },
-  filterButton: {
+  navButton: {
     padding: 10,
   },
-  activeFilter: {
-    backgroundColor: '#d0eaff',
+  navButtonText: {
+    fontSize: 20,
+    color: '#007BFF', // Blue navigation buttons
   },
-  filterText: {
-    fontSize: 16,
+  headerText: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#333',
-  },
-  
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  footerItem: {
-    alignItems: 'center',
   },
   footerIcon: {
     marginBottom: 5,
@@ -558,140 +156,56 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 12,
   },
- searchContainer: {
+  title: {
+    fontSize: 32,
+    fontWeight: '400',
+    color: '#0B204E',
+    marginTop: 40,
+    textAlign: 'center',
+  },
+  footerItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1, // Ensure items take equal space
+  },
+  weekContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: 20,
-    paddingHorizontal: 20,
+    marginTop: 20,
   },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 10,
-  },
- 
-  menuIcon: {
-    marginLeft: 15,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
- searchIcon: {
-    marginRight: 10,
-  },
-  jobCard: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  jobTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-   modalItem: {
-    paddingVertical: 15,
-  },
-  modalItemText: {
-    fontSize: 18,
-  },
-  jobDetail: {
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#007BFF',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 5,
-  },
-  buttonText: {
-    color: '#fff',
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
-    marginVertical: 5,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  closeButton: {
-    backgroundColor: '#007BFF',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-  },
-  modalCloseButton: {
-    backgroundColor: '#E0E0E0',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  closeButtonText: {
-    color: '#fff',
-    textAlign: 'center',
-  },
-  modalCloseButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  logoutButton: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    backgroundColor: '#FF5733',
-    padding: 10,
-    borderRadius: 5,
-  },
-  checkboxContainer: {
+  footer: {
     flexDirection: 'row',
+    justifyContent: 'space-between', // Spread out the footer items evenly
     alignItems: 'center',
-    marginBottom: 5,
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 10,
+    position: 'absolute', // Ensure footer stays at the bottom
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderColor: '#007bff',
-    borderWidth: 1,
-    borderRadius: 12,
-    justifyContent: 'center',
+  dayContainer: {
     alignItems: 'center',
-    marginRight: 10,
-  },
-  checkboxText: {
-    fontSize: 18,
-    color: '#007bff',
-  },
-  logoutText: {
-    color: '#fff',
-  },
-  toggleModalButton: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    backgroundColor: '#007BFF',
     padding: 10,
-    borderRadius: 5,
+    borderRadius: 20, // Rounded for selected day
+    backgroundColor: '#FFFFFF',
   },
-  toggleModalText: {
-    color: '#fff',
+  todayContainer: {
+    backgroundColor: '#007BFF', // Highlight for today's date
+    borderRadius: 20,
   },
-  icon: {
-    marginRight: 5,
+  dayText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#555',
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#555',
+  },
+  todayText: {
+    color: '#FFFFFF', // White text for highlighted day
   },
 });
 
-export default HomeScreen;
-
-
-
-
+export default home;
